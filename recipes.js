@@ -17,7 +17,8 @@ export const recipes=[
  r('dilo','Kopi O Kosong Di Lo','black','Undiluted brewed kopi, no milk or sugar.',200,0,0,0,0,0,'Di lo means no added water. This is undiluted brewed kopi, not espresso.'),
  r('peng','Kopi Peng','iced','Sweet, milky kopi poured over ice.',90,50,24,0,4,6),
  r('openg','Kopi O Peng','iced','Sweetened black kopi, served iced.',90,74,0,0,6,6),
- r('kosong','Kopi Kosong¹','milk','Your guide’s version: no extra sugar.',90,100,24,0,0,0,'¹ This follows the uploaded guide: condensed milk with no extra sugar. Condensed milk is still sweetened. For a clear no-added-sugar order, choose Kopi C Kosong or Kopi O Kosong.')
+ r('kosong','Kopi Kosong¹','milk','Your guide’s version: no extra sugar.',90,100,24,0,0,0,'¹ This follows the uploaded guide: condensed milk with no extra sugar. Condensed milk is still sweetened. For a clear no-added-sugar order, choose Kopi C Kosong or Kopi O Kosong.'),
+ r('cpeng','Kopi C Peng','iced','Creamy evaporated-milk kopi, served iced.',90,50,0,24,6,6)
 ];
 export const stagesFor=r=>Object.keys(ingredients).filter(k=>r.amounts[k]>0);
 export const fillAt=(progress,index,count)=>Math.min(1,Math.max(0,progress*count-index));

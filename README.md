@@ -1,6 +1,6 @@
 # Kopi Lab — Singapore in a glass
 
-An interactive Three.js explanation of 16 Singapore coffee orders, inspired by the user-supplied Naumi Singapore kopi guide.
+An interactive Three.js explanation of 17 Singapore coffee orders, inspired by the user-supplied Naumi Singapore kopi guide.
 
 ## Use the page
 
