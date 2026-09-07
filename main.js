@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {createPourRig,pourFill} from './pouring.js';
+import {createPourRig,pourFill,stirProgress} from './pouring.js';
 import {OrbitControls} from './vendor/OrbitControls.js';
 import {recipes,ingredients,stagesFor,fillAt,liquidTotal} from './recipes.js';
 const $=s=>document.querySelector(s),host=$('#scene');
@@ -29,7 +29,8 @@ const iceGroup=new THREE.Group();root.add(iceGroup);const iceMat=new THREE.MeshP
 const sugar=[];for(let i=0;i<8;i++){const m=mesh(new THREE.BoxGeometry(.14,.14,.14),new THREE.MeshStandardMaterial({color:0xfff8df,roughness:1}),0,0,0);sugar.push(m);}
 const pourRig=createPourRig(root);
 const metal=new THREE.MeshStandardMaterial({color:0xb6b9b1,roughness:.3,metalness:.8});
-const spoon=new THREE.Group();root.add(spoon);const bowl=mesh(new THREE.SphereGeometry(.16,20,12),metal,0,4.0,0,spoon);bowl.scale.set(1.4,.3,1);const spoonHandle=mesh(new THREE.BoxGeometry(.65,.035,.065),metal,-.42,4.03,0,spoon);spoon.visible=false;
+const spoon=new THREE.Group();root.add(spoon);const bowl=mesh(new THREE.SphereGeometry(.16,20,12),metal,0,0,0,spoon);bowl.scale.set(1.4,.3,1);mesh(new THREE.BoxGeometry(.65,.035,.065),metal,-.42,.03,0,spoon);spoon.visible=false;
+const swirls=[];for(const [radius,color] of [[.3,0xeecb7e],[.5,0x66351f],[.7,0x89bbc5]]){const m=new THREE.Mesh(new THREE.TorusGeometry(radius,.018,6,48),new THREE.MeshBasicMaterial({color,transparent:true,opacity:0,depthWrite:false}));m.rotation.x=Math.PI/2;root.add(m);swirls.push(m);}
 const falling=[];for(let i=0;i<9;i++)falling.push(mesh(new THREE.BoxGeometry(.07,.07,.07),new THREE.MeshStandardMaterial({color:0xfbf2db}),0,0,0));
 const steam=[];for(let i=0;i<3;i++){const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(24*3),3));const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.4,depthWrite:false}));root.add(line);steam.push(line);}
 const shadow=mesh(new THREE.PlaneGeometry(30,30),new THREE.ShadowMaterial({opacity:.1}),0,-.04,0,scene);shadow.rotation.x=-Math.PI/2;shadow.receiveShadow=true;
@@ -52,8 +53,10 @@ function frame(now){const dt=Math.min((now-previous)/1000,.05);previous=now;cons
  blended.visible=volume>0&&state.mix>=.995;blended.scale.y=Math.max(.001,y-.35);blended.position.y=(y+.35)/2;blended.material.color.copy(mixColor);
  for(let i=0;i<ice.length;i++){const q=THREE.MathUtils.clamp(fractions.ice*6-i,0,1);ice[i].visible=q>0;const a=i*2.399;ice[i].position.set(Math.cos(a)*(.35+i*.05),y-.09+(1-q)*2.3+(!reduced.matches&&state.progress===1?Math.sin(t*1.3+i)*.025:0),Math.sin(a)*(.35+i*.05));ice[i].scale.setScalar(Math.min(1,q*4));}
  for(let i=0;i<sugar.length;i++){const q=Math.min(1,r.amounts.sugar/2-i);sugar[i].visible=q>0&&fractions.sugar>0;const dissolve=1-Math.min(1,(fractions.coffee+fractions.water)*.95+state.mix);sugar[i].scale.setScalar(Math.max(.001,dissolve*Math.min(1,fractions.sugar*4)));sugar[i].position.set(Math.cos(i*2.4)*.55,.43,Math.sin(i*2.4)*.55);}
- const activeIndex=Math.min(n-1,Math.floor(state.progress*n)),active=stages[activeIndex],f=fractions[active],pouring=state.progress>0&&state.progress<1&&f>.02&&f<.98;
+ const activeIndex=Math.min(n-1,Math.floor(state.progress*n)),active=stages[activeIndex],f=fractions[active],pouring=state.progress>0&&state.progress<1&&f>.02&&f<.98,stir=stirProgress(state.mix);
  pourRig.update(active,state.progress<1?f:1,y);spoon.visible=pouring&&active==='sugar';
+ spoon.visible=state.mixed&&stir.motion>.02;const angle=t*4.5;spoon.position.set(Math.cos(angle)*.48,y+.12,Math.sin(angle)*.48);spoon.rotation.y=-angle;
+ for(let i=0;i<swirls.length;i++){const m=swirls[i],orbit=t*(1.8+i*.25)+i*2.1;m.visible=state.mixed&&stir.motion>.02;m.position.set(Math.cos(orbit)*.16,y+.02+i*.008,Math.sin(orbit)*.16);m.scale.setScalar(.72+.28*Math.sin(stir.motion*Math.PI+i));m.material.opacity=.32*(1-stir.blend);}
  for(let i=0;i<falling.length;i++){falling[i].visible=pouring&&active==='sugar';const phase=(t*1.4+i*.117)%1;falling[i].position.set(Math.sin(i*3)*.17,4-phase*3.6,Math.cos(i*3)*.17);}
  for(let i=0;i<steam.length;i++){steam[i].visible=!r.amounts.ice&&state.progress>=1&&!reduced.matches;const a=steam[i].geometry.attributes.position;for(let j=0;j<24;j++){const v=j/23;a.setXYZ(j,(i-1)*.4+Math.sin(v*6+t*1.1+i)*.06,y+.08+v*.65,Math.cos(v*5+t+i)*.06);}a.needsUpdate=true;}
  controls.update();renderer.render(scene,camera);
