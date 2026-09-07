@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
 export const pourFill=phase=>smooth((phase-.12)/.76);
+export const stirProgress=mix=>({motion:mix<.18?mix/.18:mix<.72?1:Math.max(0,(1-mix)/.28),blend:Math.max(0,Math.min(1,(mix-.25)/.75))});
 export const flowStyles={condensed:{color:0xeecb7e,radius:.048,reach:.07},evaporated:{color:0xf4e7c5,radius:.035,reach:.15},coffee:{color:0x66351f,radius:.025,reach:.20},water:{color:0x89bbc5,radius:.019,reach:.24}};
 export function createPourRig(parent){
  const rig=new THREE.Group();parent.add(rig);const jug=new THREE.Group();rig.add(jug);
@@ -23,7 +24,7 @@ export function createPourRig(parent){
  function update(kind,phase,surface){const style=flowStyles[kind];rig.visible=!!style&&phase>0&&phase<1;if(!rig.visible)return;
   const tilt=smooth(phase/.12)*(1-smooth((phase-.88)/.12));jug.rotation.z=-.18-tilt*.85;
   // Anchor the opening above the glass after applying the jug's rotation.
-  const anchor=new THREE.Vector3(-.27,3.80+(1-tilt)*.15,0);
+  const anchor=new THREE.Vector3(-.27,3.95-smooth(phase)*.38,0);
   rotatedTip.copy(tip).applyQuaternion(jug.quaternion);jug.position.copy(anchor).sub(rotatedTip);
   jug.updateMatrix();origin.copy(tip).applyMatrix4(jug.matrix);end.set(origin.x+style.reach,surface+.008,origin.z);
   const flow=phase>.12&&phase<.88,envelope=smooth((phase-.12)/.06)*(1-smooth((phase-.82)/.06));
