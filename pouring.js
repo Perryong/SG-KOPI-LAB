@@ -17,6 +17,10 @@ export function createPourRig(parent){
  const lip=mesh(new THREE.TorusGeometry(.066,.012,8,24),metal,...tip.toArray());
  lip.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),tip.clone().sub(neck).normalize());
  const liquidMat=new THREE.MeshStandardMaterial({color:0x66351f,roughness:.25});
+ // A closed volume inside the metal shell; deform its top in jug space so
+ // it slopes against the tilt while staying below the rim and above the base.
+ const contents=mesh(new THREE.CylinderGeometry(.326,.273,1,48,1),liquidMat);
+ const rest=contents.geometry.attributes.position.array.slice();
  const segments=[];const geometry=new THREE.CylinderGeometry(1,1,1,12);
  for(let i=0;i<24;i++){const o=new THREE.Mesh(geometry,liquidMat);rig.add(o);segments.push(o);}
  const ripples=[];for(let i=0;i<2;i++){const m=new THREE.Mesh(new THREE.TorusGeometry(.12,.009,6,40),new THREE.MeshBasicMaterial({color:0xb98757,transparent:true,opacity:.25,depthWrite:false}));m.rotation.x=Math.PI/2;rig.add(m);ripples.push(m);}
@@ -29,9 +33,17 @@ export function createPourRig(parent){
   jug.updateMatrix();origin.copy(tip).applyMatrix4(jug.matrix);end.set(origin.x+style.reach,surface+.008,origin.z);
   const flow=phase>.12&&phase<.88,envelope=smooth((phase-.12)/.06)*(1-smooth((phase-.82)/.06));
   liquidMat.color.setHex(style.color);
+  const positions=contents.geometry.attributes.position,level=.23-.46*pourFill(phase);
+  for(let i=0;i<positions.count;i++){
+   const x=rest[i*3],z=rest[i*3+2];
+   const wave=Math.sin(phase*36+x*13+z*9)*.012*tilt;
+   const top=Math.max(-.275,Math.min(.29,level-x*Math.tan(jug.rotation.z)+wave));
+   positions.setY(i,rest[i*3+1]>0?top:-.30);
+  }
+  positions.needsUpdate=true;contents.geometry.computeVertexNormals();
   const point=(v,s)=>v.set(origin.x+style.reach*s,origin.y+(end.y-origin.y)*s*s,origin.z);
   for(let i=0;i<segments.length;i++){const m=segments[i];m.visible=flow;if(!flow)continue;point(a,i/segments.length);point(b,(i+1)/segments.length);delta.copy(b).sub(a);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,delta.clone().normalize());const radius=style.radius*Math.max(.1,envelope)*(1-.23*i/segments.length);m.scale.set(radius,delta.length()+.002,radius);}
   for(let i=0;i<ripples.length;i++){const m=ripples[i];m.visible=flow;if(flow){const cycle=(phase*7+i*.5)%1;m.position.copy(end);m.position.y+=.004+i*.002;m.scale.setScalar(.6+cycle*2);m.material.color.setHex(style.color);m.material.opacity=(1-cycle)*.28*envelope;}}
  }
- return {rig,jug,tip,segments,origin,end,update};
+ return {rig,jug,tip,segments,contents,origin,end,update};
 }
