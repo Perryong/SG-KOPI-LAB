@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
+import {jugHandleGeometry} from './handles.js';
 const smooth=x=>{x=Math.max(0,Math.min(1,x));return x*x*(3-2*x);};
 export const pourFill=phase=>smooth((phase-.12)/.76);
-export const stirProgress=mix=>({motion:mix<.18?mix/.18:mix<.72?1:Math.max(0,(1-mix)/.28),blend:Math.max(0,Math.min(1,(mix-.25)/.75))});
 export const flowStyles={condensed:{color:0xeecb7e,radius:.048,reach:.07},evaporated:{color:0xf4e7c5,radius:.035,reach:.15},coffee:{color:0x66351f,radius:.025,reach:.20},water:{color:0x89bbc5,radius:.019,reach:.24}};
 export function createPourRig(parent){
  const rig=new THREE.Group();parent.add(rig);const jug=new THREE.Group();rig.add(jug);
@@ -10,17 +10,13 @@ export function createPourRig(parent){
  mesh(new THREE.CylinderGeometry(.35,.29,.65,48,1,true),metal);
  mesh(new THREE.CylinderGeometry(.29,.29,.025,48),metal,0,-.325,0);
  const rim=mesh(new THREE.TorusGeometry(.35,.02,8,48),metal,0,.325,0);rim.rotation.x=Math.PI/2;
- mesh(new THREE.TorusGeometry(.27,.042,8,32),metal,-.38,0,0);
+ const handle=mesh(jugHandleGeometry(),metal);handle.name='jug-handle';
  const tip=new THREE.Vector3(.57,.34,0),neck=new THREE.Vector3(.4,.29,0);
  const path=new THREE.CatmullRomCurve3([new THREE.Vector3(.25,.23,0),neck,tip]);
  mesh(new THREE.TubeGeometry(path,16,.066,12,false),metal);
  const lip=mesh(new THREE.TorusGeometry(.066,.012,8,24),metal,...tip.toArray());
  lip.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),tip.clone().sub(neck).normalize());
  const liquidMat=new THREE.MeshStandardMaterial({color:0x66351f,roughness:.25});
- // A closed volume inside the metal shell; deform its top in jug space so
- // it slopes against the tilt while staying below the rim and above the base.
- const contents=mesh(new THREE.CylinderGeometry(.326,.273,1,48,1),liquidMat);
- const rest=contents.geometry.attributes.position.array.slice();
  const segments=[];const geometry=new THREE.CylinderGeometry(1,1,1,12);
  for(let i=0;i<24;i++){const o=new THREE.Mesh(geometry,liquidMat);rig.add(o);segments.push(o);}
  const ripples=[];for(let i=0;i<2;i++){const m=new THREE.Mesh(new THREE.TorusGeometry(.12,.009,6,40),new THREE.MeshBasicMaterial({color:0xb98757,transparent:true,opacity:.25,depthWrite:false}));m.rotation.x=Math.PI/2;rig.add(m);ripples.push(m);}
@@ -28,22 +24,14 @@ export function createPourRig(parent){
  function update(kind,phase,surface){const style=flowStyles[kind];rig.visible=!!style&&phase>0&&phase<1;if(!rig.visible)return;
   const tilt=smooth(phase/.12)*(1-smooth((phase-.88)/.12));jug.rotation.z=-.18-tilt*.85;
   // Anchor the opening above the glass after applying the jug's rotation.
-  const anchor=new THREE.Vector3(-.27,3.95-smooth(phase)*.38,0);
+  const anchor=new THREE.Vector3(-.27,3.80+(1-tilt)*.15,0);
   rotatedTip.copy(tip).applyQuaternion(jug.quaternion);jug.position.copy(anchor).sub(rotatedTip);
   jug.updateMatrix();origin.copy(tip).applyMatrix4(jug.matrix);end.set(origin.x+style.reach,surface+.008,origin.z);
   const flow=phase>.12&&phase<.88,envelope=smooth((phase-.12)/.06)*(1-smooth((phase-.82)/.06));
   liquidMat.color.setHex(style.color);
-  const positions=contents.geometry.attributes.position,level=.23-.46*pourFill(phase);
-  for(let i=0;i<positions.count;i++){
-   const x=rest[i*3],z=rest[i*3+2];
-   const wave=Math.sin(phase*36+x*13+z*9)*.012*tilt;
-   const top=Math.max(-.275,Math.min(.29,level-x*Math.tan(jug.rotation.z)+wave));
-   positions.setY(i,rest[i*3+1]>0?top:-.30);
-  }
-  positions.needsUpdate=true;contents.geometry.computeVertexNormals();
   const point=(v,s)=>v.set(origin.x+style.reach*s,origin.y+(end.y-origin.y)*s*s,origin.z);
   for(let i=0;i<segments.length;i++){const m=segments[i];m.visible=flow;if(!flow)continue;point(a,i/segments.length);point(b,(i+1)/segments.length);delta.copy(b).sub(a);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,delta.clone().normalize());const radius=style.radius*Math.max(.1,envelope)*(1-.23*i/segments.length);m.scale.set(radius,delta.length()+.002,radius);}
   for(let i=0;i<ripples.length;i++){const m=ripples[i];m.visible=flow;if(flow){const cycle=(phase*7+i*.5)%1;m.position.copy(end);m.position.y+=.004+i*.002;m.scale.setScalar(.6+cycle*2);m.material.color.setHex(style.color);m.material.opacity=(1-cycle)*.28*envelope;}}
  }
- return {rig,jug,tip,segments,contents,origin,end,update};
+ return {rig,jug,tip,segments,origin,end,update};
 }
