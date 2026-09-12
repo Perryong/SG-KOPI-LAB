@@ -17,6 +17,10 @@ export function createPourRig(parent){
  const lip=mesh(new THREE.TorusGeometry(.066,.012,8,24),metal,...tip.toArray());
  lip.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),tip.clone().sub(neck).normalize());
  const liquidMat=new THREE.MeshStandardMaterial({color:0x66351f,roughness:.25});
+ // Interior volume with a gently moving free surface, clipped to the jug walls.
+ const poolGeometry=new THREE.CylinderGeometry(.329,.273,1,48,1,false);
+ const poolBase=poolGeometry.attributes.position.array.slice();
+ const pool=new THREE.Mesh(poolGeometry,new THREE.MeshStandardMaterial({color:0xeecb7e,roughness:.23,side:THREE.DoubleSide}));jug.add(pool);
  const segments=[];const geometry=new THREE.CylinderGeometry(1,1,1,12);
  for(let i=0;i<24;i++){const o=new THREE.Mesh(geometry,liquidMat);rig.add(o);segments.push(o);}
  const ripples=[];for(let i=0;i<2;i++){const m=new THREE.Mesh(new THREE.TorusGeometry(.12,.009,6,40),new THREE.MeshBasicMaterial({color:0xb98757,transparent:true,opacity:.25,depthWrite:false}));m.rotation.x=Math.PI/2;rig.add(m);ripples.push(m);}
@@ -29,9 +33,20 @@ export function createPourRig(parent){
   jug.updateMatrix();origin.copy(tip).applyMatrix4(jug.matrix);end.set(origin.x+style.reach,surface+.008,origin.z);
   const flow=phase>.12&&phase<.88,envelope=smooth((phase-.12)/.06)*(1-smooth((phase-.82)/.06));
   liquidMat.color.setHex(style.color);
+  pool.material.color.setHex(style.color);
+  const remaining=1-pourFill(phase),level=-.30+.54*remaining,positions=poolGeometry.attributes.position;
+  for(let i=0;i<positions.count;i++){
+   const x=poolBase[i*3],v=poolBase[i*3+1],z=poolBase[i*3+2];
+   const top=Math.max(-.307,Math.min(.298,level-Math.tan(jug.rotation.z)*x+.012*Math.sin(phase*24+z*8)*remaining));
+   const py=v>0?top:-.312,innerRadius=.29+(py+.325)/.65*.06-.012;
+   const rr=Math.hypot(x,z),scale=rr>0?innerRadius/rr:0;
+   positions.setXYZ(i,x*scale,py,z*scale);
+  }
+  positions.needsUpdate=true;poolGeometry.computeVertexNormals();poolGeometry.computeBoundingSphere();
+  pool.visible=remaining>.005;pool.userData.remaining=remaining;
   const point=(v,s)=>v.set(origin.x+style.reach*s,origin.y+(end.y-origin.y)*s*s,origin.z);
   for(let i=0;i<segments.length;i++){const m=segments[i];m.visible=flow;if(!flow)continue;point(a,i/segments.length);point(b,(i+1)/segments.length);delta.copy(b).sub(a);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(up,delta.clone().normalize());const radius=style.radius*Math.max(.1,envelope)*(1-.23*i/segments.length);m.scale.set(radius,delta.length()+.002,radius);}
   for(let i=0;i<ripples.length;i++){const m=ripples[i];m.visible=flow;if(flow){const cycle=(phase*7+i*.5)%1;m.position.copy(end);m.position.y+=.004+i*.002;m.scale.setScalar(.6+cycle*2);m.material.color.setHex(style.color);m.material.opacity=(1-cycle)*.28*envelope;}}
  }
- return {rig,jug,tip,segments,origin,end,update};
+ return {rig,jug,tip,segments,origin,end,pool,update};
 }
